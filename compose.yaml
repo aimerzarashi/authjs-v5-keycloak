@@ -9,7 +9,7 @@ services:
       - db
       - idp
     volumes:
-      - ./ui:/app
+      - ./web:/app
     tty: true
     working_dir: /app
     command:
