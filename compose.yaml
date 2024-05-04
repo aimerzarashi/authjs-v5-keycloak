@@ -18,18 +18,10 @@ services:
       - |
         npm install;
         npm run dev;
-  db:
-    container_name: db
-    image: postgres:16.1
-    ports:
-      - 5432:5432
-    restart: always
-    environment:
-      POSTGRES_USER: bn_keycloak
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: bitnami_keycloak
-    volumes:
-      - ./db/data:/var/lib/postgresql/data
+    networks:
+      default:
+        aliases:
+          - web.localhost
   idp:
     container_name: idp
     image: bitnami/keycloak:23
@@ -48,3 +40,19 @@ services:
       - ./idp/import:/opt/bitnami/keycloak/data/import
     depends_on:
       - db
+    networks:
+      default:
+        aliases:
+          - idp.localhost
+  db:
+    container_name: db
+    image: postgres:16.1
+    ports:
+      - 5432:5432
+    restart: always
+    environment:
+      POSTGRES_USER: bn_keycloak
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: bitnami_keycloak
+    volumes:
+      - ./db/data:/var/lib/postgresql/data
