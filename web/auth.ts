@@ -52,7 +52,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       } else if (token.account?.expires_in && Date.now() < token.account?.expires_at) {
         return token
-      } else if (token.account?.refresh_expires_in) {
+      } else if (token.account && Date.now() < (token.account.expires_at - token.account.expires_in + token.account.refresh_expires_in)) {
         try {
           const response = await fetch(process.env.AUTH_KEYCLOAK_ISSUER!, {
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
