@@ -1,43 +1,41 @@
-import NextAuth from "next-auth"
-import Keycloak from "next-auth/providers/keycloak"
-import { JWT } from "next-auth/jwt"
+import NextAuth from "next-auth";
+import { AdapterSession } from "@auth/core/adapters";
+import { Awaitable } from "@auth/core/types";
+import Keycloak from "next-auth/providers/keycloak";
+import { JWT } from "@auth/core/jwt";
+
+type message = {
+  session?: void | AdapterSession | null | undefined;
+  token?: JWT | null;
+};
 
 type Account = {
-  id_token: string
-  access_token: string
-  refresh_token: string
-  expires_in: number
-  refresh_expires_in: number
-  expires_at: number
-}
+  id_token: string;
+  access_token: string;
+  refresh_token: string;
+  expires_at: number;
+  refresh_expires_at: number;
+};
 
-declare module "next-auth" {
+declare module "@auth/core/types" {
   interface Session {
-    account?: Account
+    account?: Account;
   }
 }
 
-declare module "next-auth/jwt" {
+declare module "@auth/core/jwt" {
   interface JWT {
-    account?: Account
+    account?: Account;
   }
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [Keycloak],
   session: {
-    strategy: "jwt"
+    strategy: "jwt",
   },
   callbacks: {
-    async jwt({ token, user, account, profile }) {
-      console.debug({
-        callbacks_jwt: {
-          token: token,
-          user: user,
-          account: account,
-          profile: profile,
-        }
-      });
+    async jwt({ token, account }) {
       if (account) {
         return {
           ...token,
@@ -45,65 +43,98 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             id_token: account.id_token ? account.id_token : "",
             access_token: account.access_token ? account.access_token : "",
             refresh_token: account.refresh_token ? account.refresh_token : "",
-            expires_in: account.expires_in ? account.expires_in : 0,
-            refresh_expires_in: account.refresh_expires_in as number ? account.refresh_expires_in as number : 0,
             expires_at: account.expires_at ? account.expires_at : 0,
-          }
-        }
-      } else if (token.account?.expires_in && Date.now() < token.account?.expires_at) {
-        return token
-      } else if (token.account && Date.now() < (token.account.expires_at - token.account.expires_in + token.account.refresh_expires_in)) {
-        try {
-          const response = await fetch(process.env.AUTH_KEYCLOAK_ISSUER!, {
+            refresh_expires_at:
+              account.expires_at &&
+                account.expires_in &&
+                account.refresh_expires_in
+                ? account.expires_at -
+                account.expires_in +
+                (account.refresh_expires_in as number)
+                : 0,
+          },
+        };
+      }
+
+      if (
+        token.account?.expires_at &&
+        Math.floor(Date.now() / 1000) < token.account?.expires_at
+      ) {
+        return token;
+      }
+
+      if (
+        token.account?.refresh_expires_at &&
+        Math.floor(Date.now() / 1000) < token.account?.refresh_expires_at
+      ) {
+        const response = await fetch(
+          `${process.env.AUTH_KEYCLOAK_ISSUER}/protocol/openid-connect/token`,
+          {
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: new URLSearchParams({
               client_id: process.env.AUTH_KEYCLOAK_ID!,
               client_secret: process.env.AUTH_KEYCLOAK_SECRET!,
               grant_type: "refresh_token",
-              refresh_token: token.account.refresh_token,
+              refresh_token: token.account?.refresh_token!,
             }),
             method: "POST",
-          })
-          const tokens = await response.json()
-          if (response.ok) {
-            return {
-              ...token,
-              account: {
-                id_token: tokens.id_token ? tokens.id_token : "",
-                access_token: tokens.access_token ? tokens.access_token : "",
-                refresh_token: tokens.refresh_token ? tokens.refresh_token : "",
-                expires_in: tokens.expires_in ? tokens.expires_in : 0,
-                refresh_expires_in: tokens.refresh_expires_in as number ? tokens.refresh_expires_in as number : 0,
-                expires_at: tokens.expires_at ? tokens.expires_at : 0,
-              }
-            }
           }
-        } catch (error) {
-          console.error(error)
+        );
+
+        const tokens = await response.json();
+        if (!response.ok) {
+          return null;
         }
+
+        return {
+          ...token,
+          account: {
+            id_token: tokens.id_token,
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+            expires_at: Math.floor(Date.now() / 1000) + tokens.expires_in,
+            refresh_expires_at:
+              Math.floor(Date.now() / 1000) + tokens.refresh_expires_in,
+          },
+        };
       }
-      return token
+
+      if (
+        token.account?.refresh_expires_at &&
+        Math.floor(Date.now() / 1000) >= token.account?.refresh_expires_at
+      ) {
+        return null;
+      }
+
+      return token;
     },
-    session({ session, token }) {
-      console.debug({
-        callbacks_session: {
-          session,
-          token
-        }
-      });
+    async session({ session, token }) {
       return {
         ...session,
-        account: token.account
-      }
+        account: token.account,
+      };
     },
   },
   events: {
-    signOut: async (message) => {
-      console.debug({
-        events_signOut: {
-          message
-        }
-      })
-    }
+    signOut: async (message:
+      | { session: void | Awaitable<AdapterSession | null | undefined>; }
+      | { token: Awaitable<JWT | null>; }) => {
+      if ("token" in message && message.token) {
+        const token = await message.token
+        const response = await fetch(
+          `${process.env.AUTH_KEYCLOAK_ISSUER}/protocol/openid-connect/logout`,
+          {
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              client_id: process.env.AUTH_KEYCLOAK_ID!,
+              client_secret: process.env.AUTH_KEYCLOAK_SECRET!,
+              grant_type: "refresh_token",
+              refresh_token: token?.account?.refresh_token!,
+            }),
+            method: "POST",
+          }
+        );
+      }
+    },
   },
-})
+});
