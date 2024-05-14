@@ -121,7 +121,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       | { session: void | Awaitable<AdapterSession | null | undefined>; }
       | { token: Awaitable<JWT | null>; }) => {
       if ("token" in message && message.token) {
-        const token = await message.token
+        const token = await message.token;
         const response = await fetch(
           `${process.env.AUTH_KEYCLOAK_ISSUER}/protocol/openid-connect/logout`,
           {
