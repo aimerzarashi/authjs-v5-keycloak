@@ -4,11 +4,6 @@ import { Awaitable } from "@auth/core/types";
 import Keycloak from "next-auth/providers/keycloak";
 import { JWT } from "@auth/core/jwt";
 
-type message = {
-  session?: void | AdapterSession | null | undefined;
-  token?: JWT | null;
-};
-
 type Account = {
   id_token: string;
   access_token: string;
