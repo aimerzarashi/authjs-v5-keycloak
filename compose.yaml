@@ -1,7 +1,7 @@
 version: "3"
 services:
   web:
-    container_name: web
+    container_name: web.localhost
     image: node:20-alpine3.18
     ports:
       - 3000:3000
@@ -18,12 +18,8 @@ services:
       - |
         npm install;
         npm run dev;
-    networks:
-      default:
-        aliases:
-          - web.localhost
   idp:
-    container_name: idp
+    container_name: idp.localhost
     image: bitnami/keycloak:23
     ports:
       - 8080:8080
@@ -40,10 +36,6 @@ services:
       - ./idp/import:/opt/bitnami/keycloak/data/import
     depends_on:
       - db
-    networks:
-      default:
-        aliases:
-          - idp.localhost
   db:
     container_name: db
     image: postgres:16.1
@@ -56,3 +48,9 @@ services:
       POSTGRES_DB: bitnami_keycloak
     volumes:
       - ./db/data:/var/lib/postgresql/data
+  smtp:
+    container_name: smtp.localhost
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"

@@ -1,7 +1,7 @@
 version: "3"
 services:
   web:
-    container_name: web
+    container_name: web.localhost
     build:
       context: ./web
       dockerfile: ./Dockerfile
@@ -9,7 +9,7 @@ services:
       - "3000:3000"
     tty: true
     env_file:
-    - ./web/.env.local
+      - ./web/.env.local
   db:
     container_name: db
     image: postgres:16.1
@@ -23,7 +23,7 @@ services:
     volumes:
       - ./db/data:/var/lib/postgresql/data
   idp:
-    container_name: idp
+    container_name: idp.localhost
     image: bitnami/keycloak:23
     ports:
       - 8080:8080
@@ -40,3 +40,9 @@ services:
       - ./idp/import:/opt/bitnami/keycloak/data/import
     depends_on:
       - db
+  smtp:
+    container_name: smtp.localhost
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
