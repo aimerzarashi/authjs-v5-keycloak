@@ -25,7 +25,13 @@ declare module "@auth/core/jwt" {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [Keycloak],
+  providers: [Keycloak({
+    authorization: {
+      params: {
+        scope: "openid profile email",
+      },
+    }
+  })],
   session: {
     strategy: "jwt",
     updateAge: 5 * 60,
