@@ -20,7 +20,7 @@ services:
         npm run dev;
   idp:
     container_name: idp.localhost
-    image: bitnami/keycloak:23
+    image: bitnami/keycloak:24
     ports:
       - 8080:8080
     environment:
